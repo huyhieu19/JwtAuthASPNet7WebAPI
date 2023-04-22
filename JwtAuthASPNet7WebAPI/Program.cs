@@ -1,4 +1,4 @@
-using JwtAuthASPNet7WebAPI.Core;
+using JwtAuthASPNet7WebAPI.Core.DbContext;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

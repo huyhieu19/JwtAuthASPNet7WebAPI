@@ -1,13 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace JwtAuthASPNet7WebAPI.Core
+namespace JwtAuthASPNet7WebAPI.Core.Dtos
 {
-    public class LoginDto
+    public class UpdatePermisstionDto
     {
         [Required(ErrorMessage = "UserName is required")]
         public string UserName { get; set; }
-
-        [Required(ErrorMessage = "Password is required")]
-        public string Password { get; set; }
     }
 }
