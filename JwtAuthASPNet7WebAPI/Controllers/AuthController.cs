@@ -134,5 +134,35 @@ namespace JwtAuthASPNet7WebAPI.Controllers
             string token = new JwtSecurityTokenHandler().WriteToken(tokenObject);
             return token;
         }
+
+        // Create Role for user
+        // Route role user -> Admin
+        [HttpPost]
+        [Route("marke-admin")]
+        public async Task<IActionResult> MarkeAdmin([FromBody]UpdatePermisstionDto updatePermisstionDto)
+        {
+            var user = await _userManager.FindByNameAsync(updatePermisstionDto.UserName);
+            if (user == null)
+            {
+                return BadRequest("Invalid user name !");
+            }
+            await _userManager.AddToRoleAsync(user, StaticUserRoles.ADMIN);
+            return Ok("User is now an Admin");
+        }
+        
+        // Create Role owner for user
+        // Route -> make user -> owner
+        [HttpPost]
+        [Route("make-owner")]
+        public async Task<IActionResult> MakeOwner([FromBody] UpdatePermisstionDto updatePermisstionDto)
+        {
+            var user = await _userManager.FindByNameAsync(updatePermisstionDto.UserName);
+            if (user == null)
+            {
+                return BadRequest("Invalid user name !");
+            }
+            await _userManager.AddToRoleAsync(user, StaticUserRoles.OWNER);
+            return Ok("User is now an owner");
+        }
     }
 }
