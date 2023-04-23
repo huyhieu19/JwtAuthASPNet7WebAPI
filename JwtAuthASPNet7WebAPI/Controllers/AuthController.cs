@@ -1,4 +1,5 @@
 ﻿using JwtAuthASPNet7WebAPI.Core.Dtos;
+using JwtAuthASPNet7WebAPI.Core.Entities;
 using JwtAuthASPNet7WebAPI.Core.OrtherObjects;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -14,11 +15,11 @@ namespace JwtAuthASPNet7WebAPI.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IConfiguration _configuration;
 
-        public AuthController(UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration)
+        public AuthController(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -51,14 +52,18 @@ namespace JwtAuthASPNet7WebAPI.Controllers
         [Route("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
-            var isExistsUser = await _userManager.FindByNameAsync(registerDto.UserName);
+            var isExistFirstsUser = await _userManager.FindByNameAsync(registerDto.FirstName);
+            var isExistsLastUser = await _userManager.FindByNameAsync(registerDto.LastName);
+            var isExistsUserName = await _userManager.FindByNameAsync(registerDto.UserName);
 
-            if (isExistsUser != null)
+            if (isExistFirstsUser != null && isExistFirstsUser != null && isExistsUserName != null && isExistFirstsUser == isExistsLastUser)
                 return BadRequest("UserName Already Exists");
 
-            IdentityUser newUser = new IdentityUser()
+            ApplicationUser newUser = new ApplicationUser()
             {
                 Email = registerDto.Email,
+                FirstName = registerDto.FirstName,
+                LastName = registerDto.LastName,
                 UserName = registerDto.UserName,
                 SecurityStamp = Guid.NewGuid().ToString(),
             };
