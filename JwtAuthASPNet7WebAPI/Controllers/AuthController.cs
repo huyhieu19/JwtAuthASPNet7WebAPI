@@ -164,5 +164,7 @@ namespace JwtAuthASPNet7WebAPI.Controllers
             await _userManager.AddToRoleAsync(user, StaticUserRoles.OWNER);
             return Ok("User is now an owner");
         }
+
+        
     }
 }
