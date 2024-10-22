@@ -46,14 +46,16 @@ namespace JwtAuthASPNet7WebAPI.Core.Services
                 };
             }
 
-
+            // Claim more values
             var authClaims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, user.UserName!),
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim("JWTID", Guid.NewGuid().ToString()),
             };
-
+            // claim roles
             var userRoles = await _userManager.GetRolesAsync(user);
             foreach (var userRole in userRoles)
             {
@@ -88,14 +90,14 @@ namespace JwtAuthASPNet7WebAPI.Core.Services
             var user = await _userManager.FindByNameAsync(updatePermissionDto.UserName);
             if (user == null)
             {
-                return new AuthServiceResponseDto() 
+                return new AuthServiceResponseDto()
                 {
                     IsSucceed = false,
                     Message = "Invalid user name !!"
                 };
             }
             await _userManager.AddToRoleAsync(user, StaticUserRoles.ADMIN);
-             return new AuthServiceResponseDto() 
+            return new AuthServiceResponseDto()
             {
                 IsSucceed = true,
                 Message = "Add to Admin Succeed"
@@ -165,7 +167,7 @@ namespace JwtAuthASPNet7WebAPI.Core.Services
             await _userManager.AddToRoleAsync(newUser, StaticUserRoles.USER);
             return new AuthServiceResponseDto()
             {
-                IsSucceed = false,
+                IsSucceed = true,
                 Message = "User Created Successfully"
             };
         }

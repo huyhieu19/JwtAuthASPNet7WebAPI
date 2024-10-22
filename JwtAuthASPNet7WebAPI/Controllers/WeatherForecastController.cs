@@ -1,3 +1,4 @@
+using JwtAuthASPNet7WebAPI.Core.Middlewares;
 using JwtAuthASPNet7WebAPI.Core.OrtherObjects;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -33,9 +34,9 @@ namespace JwtAuthASPNet7WebAPI.Controllers
         [Authorize(Roles = StaticUserRoles.USER)]
         public IActionResult GetbyUser()
         {
-            return Ok(Summaries);
+            return Ok("Name: " + UserInfo.Name + "\nEmail: " + UserInfo.Email + "\nRole: " + UserInfo.Role + "\nId: " + UserInfo.Id);
         }
-        
+
         [HttpGet]
         [Route("Getbyadmin")]
         [Authorize(Roles = StaticUserRoles.ADMIN)]
@@ -43,7 +44,7 @@ namespace JwtAuthASPNet7WebAPI.Controllers
         {
             return Ok(Summaries);
         }
-        
+
         [HttpGet]
         [Route("Getbyowner")]
         [Authorize(Roles = StaticUserRoles.OWNER)]

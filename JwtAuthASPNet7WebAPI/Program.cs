@@ -1,11 +1,11 @@
 using JwtAuthASPNet7WebAPI.Core.DbContext;
 using JwtAuthASPNet7WebAPI.Core.Entities;
+using JwtAuthASPNet7WebAPI.Core.Middlewares;
 using JwtAuthASPNet7WebAPI.Core.Services;
 using JwtAuthASPNet7WebAPI.Core.Services.Interface;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
@@ -74,7 +74,7 @@ builder.Services.Configure<IdentityOptions>(options =>
 builder.Services
     .AddAuthentication(options =>
     {
-        options.DefaultScheme  = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
@@ -113,7 +113,8 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
+
+app.UseMiddleware<UserInfo>();
 
 app.Run();
