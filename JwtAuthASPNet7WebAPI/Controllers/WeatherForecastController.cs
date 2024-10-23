@@ -1,6 +1,7 @@
-using JwtAuthASPNet7WebAPI.Core.Middlewares;
+using JwtAuthASPNet7WebAPI.Core.Contexts;
+using JwtAuthASPNet7WebAPI.Core.CusAuthorizeAttribute;
 using JwtAuthASPNet7WebAPI.Core.OrtherObjects;
-using Microsoft.AspNetCore.Authorization;
+using JwtAuthASPNet7WebAPI.Core.Utils;
 using Microsoft.AspNetCore.Mvc;
 
 namespace JwtAuthASPNet7WebAPI.Controllers
@@ -31,15 +32,18 @@ namespace JwtAuthASPNet7WebAPI.Controllers
 
         [HttpGet]
         [Route("Getbyuser")]
-        [Authorize(Roles = StaticUserRoles.USER)]
+        [CusAuthorize(RoleType.User)]
         public IActionResult GetbyUser()
         {
-            return Ok("Name: " + UserInfo.Name + "\nEmail: " + UserInfo.Email + "\nRole: " + UserInfo.Role + "\nId: " + UserInfo.Id);
+            return Ok("Name: " + UserContext.Current.User.Name +
+                "\nEmail: " + UserContext.Current.User.Email +
+                "\nRole: " + UserContext.Current.User.Roles.JoinRoles() +
+                "\nId: " + UserContext.Current.User.Id);
         }
 
         [HttpGet]
         [Route("Getbyadmin")]
-        [Authorize(Roles = StaticUserRoles.ADMIN)]
+        [CusAuthorize(RoleType.User)]
         public IActionResult GetbyAdmin()
         {
             return Ok(Summaries);
@@ -47,7 +51,7 @@ namespace JwtAuthASPNet7WebAPI.Controllers
 
         [HttpGet]
         [Route("Getbyowner")]
-        [Authorize(Roles = StaticUserRoles.OWNER)]
+        [CusAuthorize(RoleType.User)]
         public IActionResult GetbyOwner()
         {
             return Ok(Summaries);

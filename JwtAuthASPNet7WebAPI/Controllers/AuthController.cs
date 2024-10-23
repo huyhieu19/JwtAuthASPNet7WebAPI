@@ -1,14 +1,10 @@
-﻿using JwtAuthASPNet7WebAPI.Core.Dtos;
-using JwtAuthASPNet7WebAPI.Core.Entities;
+﻿using JwtAuthASPNet7WebAPI.Core.Contexts;
+using JwtAuthASPNet7WebAPI.Core.CusAuthorizeAttribute;
+using JwtAuthASPNet7WebAPI.Core.Dtos;
 using JwtAuthASPNet7WebAPI.Core.OrtherObjects;
 using JwtAuthASPNet7WebAPI.Core.Services.Interface;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
+using JwtAuthASPNet7WebAPI.Core.Utils;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
 namespace JwtAuthASPNet7WebAPI.Controllers
 {
@@ -25,11 +21,22 @@ namespace JwtAuthASPNet7WebAPI.Controllers
 
         // router for seeding my roles to DB
         [HttpPost]
-        [Route("seed-role")]
-        public async Task<IActionResult> SeedRoles()
+        [Route("all-roles")]
+        public async Task<IActionResult> AllRoles()
         {
-            return Ok(await _authService.SeedRolesAsync());
+            return Ok(await _authService.GetRolesAsync());
         }
+
+        [HttpPost]
+        [Route("information")]
+        public async Task<IActionResult> Information()
+        {
+            return Ok($"Name: {UserContext.Current.User.Name}" +
+                $"\nEmail: {UserContext.Current.User.Email}" +
+                $"\nRole: {UserContext.Current.User.Roles.JoinRoles()}" +
+                $"\nId: {UserContext.Current.User.Id}");
+        }
+
 
         // route -> register
 
@@ -51,19 +58,29 @@ namespace JwtAuthASPNet7WebAPI.Controllers
         // Create Role for user
         // Route role user -> Admin
         [HttpPost]
-        [Route("marke-admin")]
-        public async Task<IActionResult> MarkeAdmin([FromBody]UpdatePermissionDto updatePermisstionDto)
+        [Route("assign-role")]
+        //[CusAuthorize(RoleType.Owner | RoleType.Admin)]
+        public async Task<IActionResult> AssignRole([FromBody] AssignRoleDto dto)
         {
-            return Ok(await _authService.MakeAdminAsync(updatePermisstionDto));
+            return Ok(await _authService.AssignRoleAsync(dto));
         }
-        
+
         // Create Role owner for user
         // Route -> make user -> owner
         [HttpPost]
-        [Route("make-owner")]
-        public async Task<IActionResult> MakeOwner([FromBody] UpdatePermissionDto updatePermisstionDto)
+        [Route("modify-information")]
+        [CusAuthorize(RoleType.User | RoleType.Owner | RoleType.Admin)]
+        public async Task<IActionResult> ModifyInformation([FromBody] ChangeInfoDto dto)
         {
-            return Ok(await _authService.MakeOwnerAsync(updatePermisstionDto));
+            return Ok(await _authService.ChangeInfoAsync(dto));
+        }
+
+        [HttpPost]
+        [Route("modify-password")]
+        [CusAuthorize(RoleType.User | RoleType.Owner | RoleType.Admin)]
+        public async Task<IActionResult> ModifyPassword([FromBody] ChangePasswordDto dto)
+        {
+            return Ok(await _authService.ChangePasswordAsync(dto));
         }
     }
 }

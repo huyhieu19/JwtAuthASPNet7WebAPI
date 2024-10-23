@@ -1,8 +1,12 @@
-﻿using JwtAuthASPNet7WebAPI.Core.Dtos;
+﻿using JwtAuthASPNet7WebAPI.Core.Contexts;
+using JwtAuthASPNet7WebAPI.Core.DbContext;
+using JwtAuthASPNet7WebAPI.Core.Dtos;
 using JwtAuthASPNet7WebAPI.Core.Entities;
 using JwtAuthASPNet7WebAPI.Core.OrtherObjects;
 using JwtAuthASPNet7WebAPI.Core.Services.Interface;
+using JwtAuthASPNet7WebAPI.Core.Utils;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -14,12 +18,17 @@ namespace JwtAuthASPNet7WebAPI.Core.Services
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly ApplicationDbContext _dbContext;
         private readonly IConfiguration _configuration;
 
-        public AuthService(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration)
+        public AuthService(UserManager<ApplicationUser> userManager,
+            RoleManager<IdentityRole> roleManager,
+            ApplicationDbContext dbContext,
+            IConfiguration configuration)
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            _dbContext = dbContext;
             _configuration = configuration;
         }
 
@@ -34,9 +43,7 @@ namespace JwtAuthASPNet7WebAPI.Core.Services
                     Message = "Invalid Credentials"
                 };
             }
-
             var isPasswordCorrect = await _userManager.CheckPasswordAsync(user, loginDto.Password);
-
             if (!isPasswordCorrect)
             {
                 return new AuthServiceResponseDto()
@@ -45,23 +52,7 @@ namespace JwtAuthASPNet7WebAPI.Core.Services
                     Message = "Invalid Credentials"
                 };
             }
-
-            // Claim more values
-            var authClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, user.UserName!),
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim("JWTID", Guid.NewGuid().ToString()),
-            };
-            // claim roles
-            var userRoles = await _userManager.GetRolesAsync(user);
-            foreach (var userRole in userRoles)
-            {
-                authClaims.Add(new Claim(ClaimTypes.Role, userRole));
-            }
-
+            var authClaims = await Claims(user);
             string token = GenerateNewJsonWebToken(authClaims);
             return new AuthServiceResponseDto()
             {
@@ -85,43 +76,37 @@ namespace JwtAuthASPNet7WebAPI.Core.Services
             return token;
         }
 
-        public async Task<AuthServiceResponseDto> MakeAdminAsync(UpdatePermissionDto updatePermissionDto)
+        private async Task<List<Claim>> Claims(ApplicationUser user)
         {
-            var user = await _userManager.FindByNameAsync(updatePermissionDto.UserName);
-            if (user == null)
+            // Claim more values
+            var authClaims = new List<Claim>
             {
-                return new AuthServiceResponseDto()
-                {
-                    IsSucceed = false,
-                    Message = "Invalid user name !!"
-                };
-            }
-            await _userManager.AddToRoleAsync(user, StaticUserRoles.ADMIN);
-            return new AuthServiceResponseDto()
-            {
-                IsSucceed = true,
-                Message = "Add to Admin Succeed"
+                new Claim(ClaimTypes.Name, user.UserName ?? string.Empty),
+                new Claim(ClaimTypes.NameIdentifier, user.Id ?? string.Empty),
+                new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
+                new Claim(ClaimTypes.MobilePhone, user.PhoneNumber ?? string.Empty),
+                new Claim("JWTID", Guid.NewGuid().ToString()),
             };
+            // claim roles
+            var roleIds = await _dbContext.UserRoles.Where(ur => ur.UserId == user.Id)
+                .Select(ur => ur.RoleId)
+                .ToListAsync();
+            var userRoles = await _dbContext.Roles.Where(r => roleIds.Contains(r.Id))
+            .Select(r => new ReturnRoles
+            {
+                RoleType = r.RoleType.DescriptionAttribute(),
+            }).Select(p => p.RoleType)
+            .ToListAsync();
+            var userRolesString = StaticExtentions.JoinRoles(userRoles);
+            authClaims.Add(new Claim(ClaimTypes.Role, userRolesString ?? string.Empty));
+
+            return authClaims;
+        }
+        private class ReturnRoles
+        {
+            public string RoleType { get; set; }
         }
 
-        public async Task<AuthServiceResponseDto> MakeOwnerAsync(UpdatePermissionDto updatePermissionDto)
-        {
-            var user = await _userManager.FindByNameAsync(updatePermissionDto.UserName);
-            if (user == null)
-            {
-                return new AuthServiceResponseDto()
-                {
-                    IsSucceed = false,
-                    Message = "Invalid user name !!"
-                };
-            }
-            await _userManager.AddToRoleAsync(user, StaticUserRoles.OWNER);
-            return new AuthServiceResponseDto()
-            {
-                IsSucceed = true,
-                Message = "Add to owner Succeed"
-            };
-        }
 
         public async Task<AuthServiceResponseDto> RegisterAsync(RegisterDto registerDto)
         {
@@ -164,7 +149,7 @@ namespace JwtAuthASPNet7WebAPI.Core.Services
 
             // Add a Default USER Role to all users
             // Can change Role or add new role
-            await _userManager.AddToRoleAsync(newUser, StaticUserRoles.USER);
+            await _userManager.AddToRoleAsync(newUser, RoleType.Guest.DescriptionAttribute());
             return new AuthServiceResponseDto()
             {
                 IsSucceed = true,
@@ -172,29 +157,121 @@ namespace JwtAuthASPNet7WebAPI.Core.Services
             };
         }
 
-
-        public async Task<AuthServiceResponseDto> SeedRolesAsync()
+        public Task<List<ApplicationRole>> GetRolesAsync()
         {
-            bool isOwnerRoleExist = await _roleManager.RoleExistsAsync(StaticUserRoles.OWNER);
-            bool isAdminRoleExist = await _roleManager.RoleExistsAsync(StaticUserRoles.ADMIN);
-            bool isUserRoleExist = await _roleManager.RoleExistsAsync(StaticUserRoles.USER);
+            return _dbContext.Roles.ToListAsync();
+        }
 
-            if (isOwnerRoleExist && isAdminRoleExist && isUserRoleExist)
-            {
-                return new AuthServiceResponseDto()
-                {
-                    IsSucceed = false,
-                    Message = "Role seeding is alreadt done"
-                };
-            }
+        public async Task<AuthServiceResponseDto> AssignRoleAsync(AssignRoleDto dto)
+        {
+            var lastUser = await _userManager.FindByIdAsync(dto.UserId.ToString()) ?? throw new Exception("User Not Found");
+            await AddRole(dto.RoleType, dto.UserId);
 
-            await _roleManager.CreateAsync(new IdentityRole(StaticUserRoles.USER));
-            await _roleManager.CreateAsync(new IdentityRole(StaticUserRoles.ADMIN));
-            await _roleManager.CreateAsync(new IdentityRole(StaticUserRoles.OWNER));
+            var newUser = await _userManager.FindByIdAsync(dto.UserId.ToString()) ?? throw new Exception("User Not Found");
+            var authClaims = await Claims(newUser);
+            string token = GenerateNewJsonWebToken(authClaims);
+
             return new AuthServiceResponseDto()
             {
-                IsSucceed = false,
-                Message = "Role seeding done successfully"
+                IsSucceed = true,
+                Message = "New Token: " + token
+            };
+
+        }
+        private async Task AddRole(RoleType roleType, Guid userId)
+        {
+            var roleName = roleType.DescriptionAttribute();
+
+            // Check if the role exists
+            var role = await _roleManager.FindByNameAsync(roleName);
+            if (role == null)
+            {
+                throw new Exception($"Role {roleName} not found");
+            }
+
+            var user = await _userManager.FindByIdAsync(userId.ToString()) ?? throw new Exception("User Not Found");
+
+            // Check if the user already has this role
+            var isInRole = await _userManager.IsInRoleAsync(user, roleName);
+            if (isInRole)
+            {
+                return;
+            }
+
+            // Add the user to the role
+            var result = await _userManager.AddToRoleAsync(user, roleName);
+            if (!result.Succeeded)
+            {
+                throw new Exception("Failed to add role to user");
+            }
+        }
+
+        public async Task<AuthServiceResponseDto> ChangePasswordAsync(ChangePasswordDto dto)
+        {
+            var user = await _userManager.FindByEmailAsync(dto.Email.ToString()) ?? throw new Exception("User Not Found");
+            if (!UserContext.Current.User.Roles.Any(r => r >= RoleType.Admin))
+            {
+                if (UserContext.Current.User.Id.ToString() != user.Id)
+                {
+                    throw new Exception("Can not change password of other user");
+                }
+            }
+            if (!await _userManager.CheckPasswordAsync(user, dto.OldPassword))
+            {
+                throw new Exception("Password Not Correct");
+            };
+            var changePasswordResult = await _userManager.ChangePasswordAsync(user, dto.OldPassword, dto.NewPassword);
+            if (!changePasswordResult.Succeeded)
+            {
+                throw new Exception("Password Not Changed");
+            }
+            return new AuthServiceResponseDto()
+            {
+                IsSucceed = true,
+                Message = "Password Changed Successfully"
+            };
+
+        }
+
+        public async Task<AuthServiceResponseDto> ChangeInfoAsync(ChangeInfoDto dto)
+        {
+            var user = await _userManager.FindByIdAsync(dto.Id.ToString()) ?? throw new Exception("User Not Found");
+            if (!UserContext.Current.User.Roles.Any(r => r >= RoleType.Admin))
+            {
+                if (UserContext.Current.User.Id.ToString() != user.Id)
+                {
+                    throw new Exception("Can not change infomation of other user");
+                }
+            }
+            if (user == null)
+            {
+                throw new Exception("User Not Found");
+            }
+            if (!dto.FirstName.IsNullOrEmpty())
+            {
+                user.FirstName = dto.FirstName;
+            }
+            if (!dto.LastName.IsNullOrEmpty())
+            {
+                user.LastName = dto.LastName;
+            }
+            if (!dto.UserName.IsNullOrEmpty())
+            {
+                user.UserName = dto.UserName;
+            }
+            if (!dto.Email.IsNullOrEmpty())
+            {
+                user.Email = dto.Email;
+            }
+            if (!dto.PhoneNumber.IsNullOrEmpty())
+            {
+                user.PhoneNumber = dto.PhoneNumber;
+            }
+            await _userManager.UpdateAsync(user);
+            return new AuthServiceResponseDto()
+            {
+                IsSucceed = true,
+                Message = "Info Changed Successfully"
             };
         }
     }

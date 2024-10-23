@@ -115,6 +115,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-app.UseMiddleware<UserInfo>();
+app.UseMiddleware<SetInfoUserMiddleware>();
 
 app.Run();
